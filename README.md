@@ -8,7 +8,7 @@ This package is a small and simple implementation of this concept with place for
 Install the package with composer:
 
 ```bash
-composer require depsimon/laravel-wallet
+composer require anexponent/tgr-laravel-wallet
 ```
 
 ## Run Migrations
@@ -33,7 +33,7 @@ This will merge the `wallet.php` config file where you can specify the Users, Wa
 
 Add the `HasWallet` trait to your User model.
 
-``` php
+```php
 
 use Depsimon\Wallet\HasWallet;
 
@@ -53,7 +53,7 @@ $user->wallet()->create();
 
 Then you can easily make transactions from your user model.
 
-``` php
+```php
 $user = User::find(1);
 $user->balance; // 0
 
@@ -69,7 +69,7 @@ $user->balance; // -150
 
 You can easily add meta information to the transactions to suit your needs.
 
-``` php
+```php
 $user = User::find(1);
 $user->deposit(100, 'deposit', ['stripe_source' => 'ch_BEV2Iih1yzbf4G3HNsfOQ07h', 'description' => 'Deposit of 100 credits from Stripe Payment']);
 $user->withdraw(10, 'withdraw', ['description' => 'Purchase of Item #1234']);
@@ -82,6 +82,7 @@ If you discover any security related issues, please email simon@webartisan.be in
 ## Credits
 
 - [Simon Depelchin](https://github.com/depsimon)
+- [Azeez Adesina](https://github.com/anexponent)
 
 ## License
 
