@@ -1,8 +1,8 @@
 <?php
 
-namespace Spatie\Skeleton\Tests;
+namespace Depsimon\Wallet\Tests;
 
-use PHPUnit\Framework\TestCase;
+use Depsimon\Wallet\Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
