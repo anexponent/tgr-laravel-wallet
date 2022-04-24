@@ -59,7 +59,8 @@ trait HasWallet
                 'hash' => uniqid('lwch_'),
                 'type' => $type,
                 'accepted' => $accepted,
-                'meta' => $meta
+                'meta' => $meta,
+                'balance'=>$this->wallet->balance
             ]);
     }
 
@@ -81,9 +82,9 @@ trait HasWallet
      * @param  array   $meta
      * @param  boolean $shouldAccept
      */
-    public function withdraw($amount, $type = 'withdraw', $meta = [], $shouldAccept = true)
+    public function withdraw($amount, $type = 'withdraw', $meta = [], $accepted = true)
     {
-        $accepted = $shouldAccept ? $this->canWithdraw($amount) : true;
+        //$accepted = $shouldAccept ? $this->canWithdraw($amount) : true;
 
         if ($accepted) {
             $this->wallet->balance -= $amount;
@@ -98,7 +99,8 @@ trait HasWallet
                 'hash' => uniqid('lwch_'),
                 'type' => $type,
                 'accepted' => $accepted,
-                'meta' => $meta
+                'meta' => $meta,
+                'balance'=>$this->wallet->balance
             ]);
     }
 
@@ -127,10 +129,14 @@ trait HasWallet
             ->sum('amount');
 
         $debits = $this->wallet->transactions()
-            ->whereIn('type', ['withdraw', 'payout'])
+            ->whereIn('type', ['withdraw', 'payout','reverse'])
             ->where('accepted', 1)
             ->sum('amount');
 
         return $credits - $debits;
     }
+
+
+
+
 }
