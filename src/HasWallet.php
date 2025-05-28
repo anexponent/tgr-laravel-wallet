@@ -86,6 +86,16 @@ trait HasWallet
     {
         //$accepted = $shouldAccept ? $this->canWithdraw($amount) : true;
 
+        // Validate amount
+        if (!is_numeric($amount) || $amount <= 0) {
+            throw new \InvalidArgumentException("Withdrawal amount must be a positive number.");
+        }
+
+        // Check balance if accepted
+        if ($accepted && !$this->canWithdraw($amount)) {
+            throw new \Exception("Insufficient balance for withdrawal.");
+        }
+        
         if ($accepted) {
             $this->wallet->balance -= $amount;
             $this->wallet->save();
