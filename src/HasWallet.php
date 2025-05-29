@@ -35,6 +35,11 @@ trait HasWallet
      */
     public function canWithdraw($amount)
     {
+         // Validate amount
+        if (!is_numeric($amount) || $amount <= 0) {
+            throw new \InvalidArgumentException("Withdrawal amount must be a positive number.");
+        }
+
         return $this->balance >= $amount;
     }
 
