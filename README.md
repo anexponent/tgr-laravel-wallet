@@ -18,7 +18,7 @@ Supports Laravel 9, 10, and 11
 Install the package with composer:
 
 ```bash
-composer require anexponent/laravel-wallet
+composer require anexponent/tgr-laravel-wallet
 ```
 The package automatically merges default configuration, so you can start using it immediately.
 

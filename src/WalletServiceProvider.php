@@ -21,7 +21,7 @@ class WalletServiceProvider extends ServiceProvider
     {
         // Publish config
         $this->publishes([
-            __DIR__ . '/../config/wallet.php' => config_path('wallet.php'),
+            __DIR__ . '/../config/config.php' => config_path('config.php'),
         ], ['wallet-config', 'config']);
 
         // Publish migrations with timestamp
