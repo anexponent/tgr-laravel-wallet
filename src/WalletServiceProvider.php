@@ -9,7 +9,7 @@ class WalletServiceProvider extends ServiceProvider
     public function register()
     {
         // Merge package config
-        $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'config');
+        $this->mergeConfigFrom(__DIR__ . '/../config/wallet.php', 'wallet');
 
         // Bind wallet manager as singleton for shared instance
         $this->app->singleton('wallet', function () {
@@ -21,7 +21,7 @@ class WalletServiceProvider extends ServiceProvider
     {
         // Publish config
         $this->publishes([
-            __DIR__ . '/../config/config.php' => config_path('config.php'),
+            __DIR__ . '/../config/wallet.php' => config_path('wallet.php'),
         ], ['wallet-config', 'config']);
 
         // Publish migrations with timestamp
