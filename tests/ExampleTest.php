@@ -1,8 +1,8 @@
 <?php
 
-namespace Depsimon\Wallet\Tests;
+namespace Anexponent\Wallet\Tests;
 
-use Depsimon\Wallet\Tests\TestCase;
+use Anexponent\Wallet\Tests\TestCase;
 
 class ExampleTest extends TestCase
 {

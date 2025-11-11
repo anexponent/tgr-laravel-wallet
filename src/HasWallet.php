@@ -1,157 +1,177 @@
 <?php
 
-namespace Depsimon\Wallet;
+namespace Anexponent\Wallet;
+
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use InvalidArgumentException;
+use RuntimeException;
+use Illuminate\Support\Facades\DB;
 
 trait HasWallet
 {
     /**
-     * Retrieve the balance of this user's wallet
+     * Accessor for the wallet balance
      */
-    public function getBalanceAttribute()
+    public function getBalanceAttribute(): float
     {
-        return $this->wallet->balance;
+        return $this->wallet?->balance ?? 0.0;
     }
 
     /**
-     * Retrieve the wallet of this user
+     * Wallet relationship
      */
-    public function wallet()
+    public function wallet(): HasOne
     {
-        return $this->hasOne(config('wallet.wallet_model', Wallet::class))->withDefault();
+        $walletModel = config('wallet.wallet_model', Wallet::class);
+
+        return $this->hasOne($walletModel)->withDefault([
+            'balance' => 0.0,
+        ]);
     }
 
     /**
-     * Retrieve all transactions of this user
+     * Transactions relationship
      */
-    public function transactions()
+    public function transactions(): HasManyThrough
     {
-        return $this->hasManyThrough(config('wallet.transaction_model', Transaction::class), config('wallet.wallet_model', Wallet::class))->latest();
+        $walletModel = config('wallet.wallet_model', Wallet::class);
+        $transactionModel = config('wallet.transaction_model', Transaction::class);
+
+        return $this->hasManyThrough($transactionModel, $walletModel)->latest();
     }
 
     /**
-     * Determine if the user can withdraw the given amount
-     * @param  integer $amount
-     * @return boolean
+     * Validate amount
      */
-    public function canWithdraw($amount)
+    protected function validateAmount(float|int $amount): void
     {
-         // Validate amount
         if (!is_numeric($amount) || $amount <= 0) {
-            throw new \InvalidArgumentException("Withdrawal amount must be a positive number.");
+            throw new InvalidArgumentException('Amount must be a positive number.');
         }
+    }
+
+    /**
+     * Check if user can withdraw
+     */
+    public function canWithdraw(float|int $amount): bool
+    {
+        $this->validateAmount($amount);
 
         return $this->balance >= $amount;
     }
 
     /**
-     * Move credits to this account
-     * @param  integer $amount
-     * @param  string  $type
-     * @param  array   $meta
+     * Deposit funds into wallet
      */
-    public function deposit($amount, $type = 'deposit', $meta = [], $accepted = true)
+    public function deposit(float|int $amount, string $type = 'deposit', array $meta = [], bool $accepted = true)
     {
-        if ($accepted) {
-            $this->wallet->balance += $amount;
-            $this->wallet->save();
-        } elseif (! $this->wallet->exists) {
-            $this->wallet->save();
-        }
+        $this->validateAmount($amount);
 
-        $this->wallet->transactions()
-            ->create([
+        DB::transaction(function () use ($amount, $type, $meta, $accepted) {
+            // Load wallet with lock to prevent race conditions
+            $wallet = $this->wallet()->lockForUpdate()->first();
+
+            if (!$wallet) {
+                // Create and save the wallet if it doesn't exist
+                $wallet = $this->wallet()->create(['balance' => 0.0]);
+                // Re-lock after creation (though in transaction, it's safe)
+                $wallet = $this->wallet()->lockForUpdate()->first();
+            }
+
+            if ($accepted) {
+                $wallet->increment('balance', $amount);
+            }
+
+            $wallet->transactions()->create([
                 'amount' => $amount,
-                'hash' => uniqid('lwch_'),
+                'hash' => (string) \Illuminate\Support\Str::uuid(),
                 'type' => $type,
                 'accepted' => $accepted,
                 'meta' => $meta,
-                'balance'=>$this->wallet->balance
+                'balance' => $wallet->balance,
             ]);
+        });
     }
 
     /**
-     * Fail to move credits to this account
-     * @param  integer $amount
-     * @param  string  $type
-     * @param  array   $meta
+     * Fail a deposit
      */
-    public function failDeposit($amount, $type = 'deposit', $meta = [])
+    public function failDeposit(float|int $amount, string $type = 'deposit', array $meta = []): void
     {
         $this->deposit($amount, $type, $meta, false);
     }
 
     /**
-     * Attempt to move credits from this account
-     * @param  integer $amount
-     * @param  string  $type
-     * @param  array   $meta
-     * @param  boolean $shouldAccept
+     * Withdraw funds
      */
-    public function withdraw($amount, $type = 'withdraw', $meta = [], $accepted = true)
+    public function withdraw(float|int $amount, string $type = 'withdraw', array $meta = [], bool $accepted = true, bool $force = false)
     {
-        //$accepted = $shouldAccept ? $this->canWithdraw($amount) : true;
+        $this->validateAmount($amount);
 
-        // Validate amount
-        if (!is_numeric($amount) || $amount <= 0) {
-            throw new \InvalidArgumentException("Withdrawal amount must be a positive number.");
-        }
+        DB::transaction(function () use ($amount, $type, $meta, $accepted, $force) {
+            // Load wallet with lock to prevent race conditions
+            $wallet = $this->wallet()->lockForUpdate()->first();
 
-        // Check balance if accepted
-        if ($accepted && !$this->canWithdraw($amount)) {
-            throw new \Exception("Insufficient balance for withdrawal.");
-        }
-        
-        if ($accepted) {
-            $this->wallet->balance -= $amount;
-            $this->wallet->save();
-        } elseif (! $this->wallet->exists) {
-            $this->wallet->save();
-        }
+            if (!$wallet) {
+                // Create and save the wallet if it doesn't exist
+                $wallet = $this->wallet()->create(['balance' => 0.0]);
+                // Re-lock after creation
+                $wallet = $this->wallet()->lockForUpdate()->first();
+            }
 
-        $this->wallet->transactions()
-            ->create([
+            if ($accepted) {
+                if (!$force && !$this->canWithdraw($amount)) {
+                    throw new RuntimeException('Insufficient balance for withdrawal.');
+                }
+                $wallet->decrement('balance', $amount);
+            }
+
+            $wallet->transactions()->create([
                 'amount' => $amount,
-                'hash' => uniqid('lwch_'),
+                'hash' => (string) \Illuminate\Support\Str::uuid(),
                 'type' => $type,
                 'accepted' => $accepted,
                 'meta' => $meta,
-                'balance'=>$this->wallet->balance
+                'balance' => $wallet->balance,
             ]);
+        });
     }
 
     /**
-     * Move credits from this account
-     * @param  integer $amount
-     * @param  string  $type
-     * @param  array   $meta
-     * @param  boolean $shouldAccept
+     * Force withdrawal (ignore balance check, allow negative)
      */
-    public function forceWithdraw($amount, $type = 'withdraw', $meta = [])
+    public function forceWithdraw(float|int $amount, string $type = 'withdraw', array $meta = []): void
     {
-        return $this->withdraw($amount, $type, $meta, false);
+        $this->withdraw($amount, $type, $meta, true, true);
     }
 
     /**
-     * Returns the actual balance for this wallet.
-     * Might be different from the balance property if the database is manipulated
-     * @return float balance
+     * Log failed withdrawal (without affecting balance)
      */
-    public function actualBalance()
+    public function failWithdraw(float|int $amount, string $type = 'withdraw', array $meta = []): void
     {
-        $credits = $this->wallet->transactions()
-            ->whereIn('type', ['deposit', 'refund'])
-            ->where('accepted', 1)
-            ->sum('amount');
-
-        $debits = $this->wallet->transactions()
-            ->whereIn('type', ['withdraw', 'payout','reverse'])
-            ->where('accepted', 1)
-            ->sum('amount');
-
-        return $credits - $debits;
+        $this->withdraw($amount, $type, $meta, false);
     }
 
+    /**
+     * Compute actual balance from transactions
+     */
+    public function actualBalance(): float
+    {
+        $wallet = $this->wallet;
 
+        // Optionally lock for read consistency, but not necessary for computation
+        $credits = $wallet->transactions()
+            ->whereIn('type', config('wallet.credit_types', ['deposit', 'refund']))
+            ->where('accepted', true)
+            ->sum('amount');
 
+        $debits = $wallet->transactions()
+            ->whereIn('type', config('wallet.debit_types', ['withdraw', 'payout', 'reverse']))
+            ->where('accepted', true)
+            ->sum('amount');
 
+        return (float) ($credits - $debits);
+    }
 }
