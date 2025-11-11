@@ -55,7 +55,7 @@ php artisan vendor:publish --provider="Anexponent\Wallet\WalletServiceProvider" 
 
 ```
 
-This will merge the `wallet.php` config file where you can specify the Users, Wallets & Transactions classes if you have custom ones.
+This will merge the `config.php` config file where you can specify the Users, Wallets & Transactions classes if you have custom ones.
 
 ## Usage
 
