@@ -121,8 +121,9 @@ trait HasWallet
             }
 
             if ($accepted) {
-                if (!$force && !$this->canWithdraw($amount)) {
-                    throw new RuntimeException('Insufficient balance for withdrawal.');
+                // if (!$force && !$this->canWithdraw($amount)) {
+                if (!$force && $wallet->balance < $amount) {
+                        throw new RuntimeException('Insufficient balance for withdrawal.');
                 }
                 $wallet->decrement('balance', $amount);
             }
